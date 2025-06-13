@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WIDS Monitoring Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'primary-dark': '#0A0A0A', 
+            'secondary-dark': '#1A1A1A', 
+            'tertiary-dark': '#2A2A2A', 
+            'accent-blue': '#3B82F6', 
+            'accent-purple': '#8B5CF6', 
+            'text-primary': '#E0E0E0', 
+            'text-secondary': '#A0A0A0', 
+            'success': '#10B981', // Emerald 500
+            'danger': '#EF4444',  // Red 500
+            'warning': '#F59E0B', // Amber 500
+            'info': '#3B82F6',    // Blue 500 (same as accent-blue)
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+           animation: {
+            'toast-in': 'toast-in 0.5s ease-out forwards',
+            'toast-out': 'toast-out 0.5s ease-in forwards',
+            'skeleton-pulse': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'modal-appear': 'modal-appear 0.3s ease-out forwards', // Added modal animation
+          },
+          keyframes: {
+            'toast-in': {
+              '0%': { transform: 'translateX(100%)', opacity: '0' },
+              '100%': { transform: 'translateX(0)', opacity: '1' },
+            },
+            'toast-out': {
+              '0%': { transform: 'translateX(0)', opacity: '1' },
+              '100%': { transform: 'translateX(100%)', opacity: '0' },
+            },
+             pulse: {
+              '0%, 100%': { opacity: 1 },
+              '50%': { opacity: .5 },
+            },
+            'modal-appear': { // Added modal keyframes
+              '0%': { transform: 'scale(0.95)', opacity: '0' },
+              '100%': { transform: 'scale(1)', opacity: '1' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #1A1A1A;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #4A4A4A;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #5A5A5A;
+    }
+    .gemini-chat-widget-fab {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      z-index: 1000;
+    }
+    .gemini-chat-widget-fab-unread-dot {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      width: 10px;
+      height: 10px;
+      background-color: #EF4444; /* danger */
+      border-radius: 50%;
+      border: 2px solid #1A1A1A; /* secondary-dark for contrast */
+    }
+    .gemini-chat-panel {
+      position: fixed;
+      bottom: 6rem; 
+      right: 2rem;
+      width: 380px;
+      height: 500px;
+      z-index: 1000;
+      transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+      transform-origin: bottom right;
+    }
+    .gemini-chat-panel.hidden {
+      transform: scale(0.5) translateY(50px);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .chat-bubble-user {
+      background-color: #3B82F6; /* accent-blue */
+      color: white;
+      border-radius: 0.75rem; /* 12px */
+      border-bottom-right-radius: 0.25rem; /* 4px for tail effect */
+    }
+    .chat-bubble-bot {
+      background-color: #2A2A2A; /* tertiary-dark */
+      color: #E0E0E0; /* text-primary */
+      border-radius: 0.75rem;
+      border-bottom-left-radius: 0.25rem; /* 4px for tail effect */
+    }
+    .chat-bubble-system {
+      background-color: rgba(239, 68, 68, 0.1); /* danger/10 */
+      color: #FCA5A5; /* danger lighter text for dark bg */
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 0.5rem; /* 8px */
+      width: 100%;
+      text-align: center;
+      font-style: italic;
+    }
+    .suggested-prompt-chip {
+      background-color: #2A2A2A; /* tertiary-dark */
+      color: #A0A0A0; /* text-secondary */
+      border: 1px solid #4A4A4A;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px; /* pill shape */
+      font-size: 0.75rem; /* 12px */
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .suggested-prompt-chip:hover {
+      background-color: #4A4A4A;
+      color: #E0E0E0; /* text-primary */
+    }
+    /* Global form field styles */
+    .input-field {
+        margin-top: 0.25rem; display: block; width: 100%;
+        background-color: #2A2A2A; /* tertiary-dark */
+        border-width: 1px; border-color: #0A0A0A; /* primary-dark */
+        border-radius: 0.375rem; /* rounded-md */
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+        padding-top: 0.5rem; padding-bottom: 0.5rem; padding-left: 0.75rem; padding-right: 0.75rem;
+        color: #E0E0E0; /* text-primary */
+    }
+    .input-field:focus {
+        outline: 2px solid transparent; outline-offset: 2px;
+        --tw-ring-color: #3B82F6; /* accent-blue */
+        border-color: #3B82F6; /* accent-blue */
+        box-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+    }
+    .input-field::placeholder { color: #6B7280; } /* Gray 500 for placeholders */
+
+    .btn-primary {
+        padding: 0.5rem 1rem; background-color: #3B82F6; /* accent-blue */ color: white;
+        border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        font-size: 0.875rem; font-weight: 500; transition: background-color 0.2s;
+        display: inline-flex; align-items: center; justify-content: center;
+    }
+    .btn-primary:hover { background-color: rgba(59, 130, 246, 0.8); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .btn-secondary {
+        padding: 0.5rem 1rem; border-width: 1px; border-color: #2A2A2A; /* tertiary-dark */
+        border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        font-size: 0.875rem; font-weight: 500; color: #A0A0A0; /* text-secondary */
+        transition: background-color 0.2s;
+    }
+    .btn-secondary:hover { background-color: #2A2A2A; }
+    .btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .btn-danger { /* New class for danger buttons */
+        padding: 0.5rem 1rem; background-color: #EF4444; /* danger */ color: white;
+        border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        font-size: 0.875rem; font-weight: 500; transition: background-color 0.2s;
+        display: inline-flex; align-items: center; justify-content: center;
+    }
+    .btn-danger:hover { background-color: rgba(239, 68, 68, 0.8); }
+    .btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
+    
+    /* Toast Notification Styles */
+    .toast-container {
+      position: fixed;
+      top: 1.25rem; /* 20px */
+      right: 1.25rem; /* 20px */
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem; /* 12px */
+      max-width: 350px;
+    }
+    .toast {
+      display: flex;
+      align-items: flex-start;
+      padding: 1rem; /* 16px */
+      border-radius: 0.5rem; /* 8px */
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+      border-width: 1px;
+      position: relative;
+      overflow: hidden; /* For progress bar */
+    }
+    .toast-icon { margin-right: 0.75rem; flex-shrink: 0; }
+    .toast-content { flex-grow: 1; }
+    .toast-title { font-weight: 600; font-size: 0.875rem; }
+    .toast-message { font-size: 0.875rem; color: #A0A0A0; }
+    .toast-close-button { margin-left: 1rem; background: transparent; border: none; cursor: pointer; }
+    .toast-progress-bar {
+        position: absolute;
+        bottom: 0; left: 0; height: 4px;
+        background-color: rgba(255, 255, 255, 0.3);
+        animation: toast-progress linear 5s; /* Duration matches auto-dismiss */
+    }
+    @keyframes toast-progress {
+        0% { width: 100%; }
+        100% { width: 0%; }
+    }
+    /* Specific Toast Types */
+    .toast-success { background-color: #1A1A1A; border-color: #10B981; color: #E0E0E0; }
+    .toast-success .toast-title { color: #10B981; }
+    .toast-error { background-color: #1A1A1A; border-color: #EF4444; color: #E0E0E0; }
+    .toast-error .toast-title { color: #EF4444; }
+    .toast-warning { background-color: #1A1A1A; border-color: #F59E0B; color: #E0E0E0; }
+    .toast-warning .toast-title { color: #F59E0B; }
+    .toast-info { background-color: #1A1A1A; border-color: #3B82F6; color: #E0E0E0; }
+    .toast-info .toast-title { color: #3B82F6; }
+
+    /* Global Search Modal Placeholder Styles */
+    .global-search-modal-overlay {
+      position: fixed; inset: 0; z-index: 5000;
+      background-color: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      display: flex; align-items: flex-start; justify-content: center;
+      padding-top: 15vh;
+    }
+    .global-search-modal {
+      background-color: #1A1A1A; /* secondary-dark */
+      border-radius: 0.5rem; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+      width: 100%; max-width: 600px;
+      max-height: 70vh; overflow-y: auto;
+    }
+    
+    /* Notification Panel Styles */
+    .notification-panel {
+      position: absolute;
+      right: 0;
+      margin-top: 0.5rem; /* 8px */
+      width: 20rem; /* 320px */
+      background-color: #1A1A1A; /* secondary-dark */
+      border-radius: 0.375rem; /* rounded-md */
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+      border: 1px solid #2A2A2A; /* tertiary-dark */
+      z-index: 50;
+    }
+
+    /* Button Spinner */
+    .btn-spinner {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+  </style>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "react": "https://esm.sh/react@^19.1.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "react-router-dom": "https://esm.sh/react-router-dom@^6.25.1",
+    "recharts": "https://esm.sh/recharts@^2.15.3",
+    "@heroicons/react/": "https://esm.sh/@heroicons/react@^2.2.0/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.4.0",
+    "react-dom": "https://esm.sh/react-dom@^19.1.0",
+    "jspdf": "https://esm.sh/jspdf@^2.5.1",
+    "jspdf-autotable": "https://esm.sh/jspdf-autotable@^3.8.2"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-primary-dark text-text-primary">
+  <div id="root"></div>
+  <div id="modal-root"></div>
+  <div id="toast-root"></div>
+  <div id="search-modal-root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "name": "WIDS Monitoring Dashboard",
+  "description": "A dashboard for monitoring an Advanced WiFi Intrusion Detection System, showcasing key metrics, system status, and performance insights. Professional and sleek UI inspired by modern monitoring tools.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
